@@ -1,0 +1,251 @@
+/* =========================================================
+   حسابان ۱ — app.css
+   Components for views rendered by app.js
+   (page heroes, footer, features, daily challenge, lesson CTA,
+    SVG visuals, exam setup, topic bars, review, misc.)
+   ========================================================= */
+
+/* ---------- Page hero (lessons / practice / exam / progress) ---------- */
+.page-hero{position:relative;padding:clamp(36px,5vw,64px) 0 clamp(18px,3vw,28px);border-bottom:1px solid var(--line);overflow:hidden;
+  background:radial-gradient(ellipse 60% 90% at 100% 0,var(--accent-soft),transparent 60%),
+             radial-gradient(ellipse 50% 70% at 0% 100%,var(--accent-3-soft),transparent 60%)}
+.page-hero::after{content:"";position:absolute;top:-80px;left:2%;font-family:var(--font-fun);font-size:14rem;line-height:1;color:var(--accent);opacity:.05;pointer-events:none}
+.page-hero .wrap{position:relative;z-index:1}
+.page-title{font-family:var(--font-display);font-weight:900;font-size:clamp(2rem,4.4vw,3.3rem);line-height:1.1;letter-spacing:-1px}
+.page-lead{margin-top:12px;max-width:64ch;color:var(--ink-2);font-size:clamp(.94rem,1.2vw,1.04rem);line-height:2.05}
+
+/* ---------- Section head ---------- */
+.section-head{max-width:64ch;margin-bottom:clamp(20px,3vw,30px)}
+.section-title{font-family:var(--font-display);font-weight:900;font-size:clamp(1.55rem,3vw,2.25rem);line-height:1.2;letter-spacing:-.5px}
+.section-sub{margin-top:8px;color:var(--ink-2);font-size:.92rem;line-height:2}
+
+/* ---------- Formula marquee ---------- */
+.formula-marquee{overflow:hidden;border-block:1px solid var(--line);background:var(--surface-2);padding:11px 0;
+  -webkit-mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent);
+  mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent)}
+.marquee-track{display:flex;width:max-content;gap:0;direction:ltr;white-space:nowrap;animation:marquee 42s linear infinite;
+  font-family:var(--font-display);font-weight:700;font-size:.88rem;color:var(--muted)}
+.marquee-track span{display:inline-flex;align-items:center;gap:34px;padding-inline-end:34px}
+.marquee-track span::after{content:"✦";color:var(--accent);opacity:.55;font-size:.75em}
+.formula-marquee:hover .marquee-track{animation-play-state:paused}
+@keyframes marquee{to{transform:translateX(-50%)}}
+
+/* ---------- Footer ---------- */
+.footer{margin-top:clamp(30px,5vw,60px);border-top:1px solid var(--line);padding:30px 0 70px;color:var(--muted);font-size:.76rem}
+.footer-inner{display:flex;flex-wrap:wrap;gap:20px 32px;align-items:center;justify-content:space-between}
+.footer .brand{display:flex;align-items:center;gap:10px;color:var(--ink)}
+.footer .brand-mark{width:34px;height:34px;color:var(--accent)}
+.footer .brand-text strong{display:block;font-family:var(--font-display);font-size:1rem;line-height:1.2}
+.footer .brand-text small{color:var(--muted);font-size:.68rem}
+.footer-note{max-width:48ch;line-height:1.9}
+.footer-links{display:flex;flex-wrap:wrap;gap:16px}
+.footer-links a{color:var(--ink-2);font-weight:600;transition:color .18s}
+.footer-links a:hover{color:var(--accent)}
+
+/* ---------- Features ---------- */
+.feature-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.feature{position:relative;padding:22px;border:1px solid var(--line);border-radius:var(--radius-lg);background:var(--surface);transition:transform .25s var(--ease),border-color .25s,box-shadow .25s}
+.feature:hover{transform:translateY(-3px);border-color:var(--line-strong);box-shadow:var(--card-shadow)}
+.feature-icon{width:46px;height:46px;border-radius:10px;display:grid;place-items:center;margin-bottom:12px;font-size:1.3rem;line-height:1;
+  background:var(--accent-soft);color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 30%,transparent)}
+.feature h3{font-family:var(--font-display);font-weight:800;font-size:1.05rem;margin-bottom:6px}
+.feature p{color:var(--muted);font-size:.84rem;line-height:1.95}
+
+/* ---------- Daily challenge + home stats ---------- */
+.home-split{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:14px;align-items:stretch}
+.daily-card{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:20px 22px;border:1px solid var(--line);border-radius:var(--radius-lg);
+  background:linear-gradient(135deg,var(--accent-soft),transparent 60%),var(--surface)}
+.daily-badge{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;flex-shrink:0;font-weight:900;font-size:1.1rem;
+  background:var(--accent);color:var(--accent-ink);box-shadow:0 0 0 6px var(--accent-soft)}
+.daily-info{flex:1;min-width:200px}
+.daily-info .eyebrow{margin-bottom:2px}
+.daily-title{font-family:var(--font-display);font-weight:800;font-size:1.08rem}
+.daily-sub{font-size:.78rem;color:var(--muted);margin-top:2px;line-height:1.8}
+.daily-meta{display:flex;flex-wrap:wrap;gap:6px}
+.home-stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.home-stat{padding:14px 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);text-align:center}
+.home-stat .n{display:block;font-family:var(--font-display);font-weight:900;font-size:1.35rem;line-height:1.35;color:var(--accent);font-variant-numeric:tabular-nums}
+.home-stat .l{font-size:.68rem;color:var(--muted)}
+
+/* ---------- Lesson: TOC, keypoints, CTA ---------- */
+.toc-btn{flex-shrink:0;padding:6px 12px;border-radius:999px;border:1px solid var(--line);font-size:.74rem;color:var(--ink-2);background:var(--surface);transition:background .18s,color .18s,border-color .18s;cursor:pointer}
+.toc-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+.keypoints{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:14px}
+.keypoint{display:flex;gap:12px;padding:14px 16px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);color:var(--ink-2);line-height:1.95}
+.keypoint .kp-num{width:28px;height:28px;flex-shrink:0;border-radius:50%;display:grid;place-items:center;background:var(--accent);color:var(--accent-ink);font-family:var(--font-display);font-weight:900;font-size:.78rem;margin-top:2px}
+.lesson-cta{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:22px;align-items:center;padding:clamp(22px,3vw,32px);border-radius:var(--radius-lg);border:1px solid var(--line);
+  background:radial-gradient(ellipse 80% 100% at 0% 0,var(--accent-soft),transparent 60%),var(--surface);scroll-margin-top:calc(var(--topbar-h) + 20px)}
+.cta-left h2{font-size:clamp(1.4rem,2.6vw,2rem);margin-bottom:6px}
+.cta-left p{color:var(--ink-2);font-size:.86rem;line-height:1.9}
+.cta-actions{display:flex;flex-direction:column;gap:8px;min-width:190px}
+.check-list{display:flex;flex-direction:column;gap:6px;margin:10px 0}
+.check-list li{position:relative;padding-inline-start:24px;color:var(--ink-2);line-height:1.95}
+.check-list li::before{content:"✓";position:absolute;inset-inline-start:2px;top:0;color:var(--accent-3);font-weight:900}
+
+/* ---------- SVG visuals inside lessons ---------- */
+.visual-box{position:relative;margin:20px 0;padding:18px;border:1px solid var(--line);border-radius:var(--radius);background:
+  linear-gradient(180deg,var(--surface-2),var(--surface));overflow:hidden}
+.visual-inner{direction:ltr}
+.visual-inner svg{display:block;width:100%;height:auto;max-width:640px;margin:0 auto}
+.visual-inner text{font-family:var(--font-body)}
+.visual-cap{display:block;margin-top:10px;font-size:.74rem;color:var(--muted);text-align:center}
+
+/* Gauss dots */
+.gauss-grid{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:6px;max-width:420px;margin:4px auto}
+.grow{display:contents}
+.gdot{aspect-ratio:1;border-radius:50%;animation:dotIn .5s var(--ease-out) both;animation-delay:calc(var(--i) * 5ms)}
+.gdot.blue{background:var(--blue);box-shadow:0 0 8px var(--blue-soft)}
+.gdot.red{background:var(--accent-2);box-shadow:0 0 8px var(--accent-2-soft)}
+@keyframes dotIn{from{opacity:0;transform:scale(0)}to{opacity:1;transform:scale(1)}}
+.gauss-legend{display:flex;flex-wrap:wrap;justify-content:center;gap:8px 18px;margin-top:10px;font-size:.76rem;color:var(--ink-2)}
+.gauss-legend .lg{display:inline-flex;align-items:center;gap:6px;direction:rtl}
+.gauss-legend i{width:9px;height:9px;border-radius:50%;display:inline-block;flex-shrink:0}
+.gauss-legend i.red{background:var(--accent-2)}.gauss-legend i.blue{background:var(--blue)}
+.gauss-total{text-align:center;margin-top:6px;font-size:.8rem;color:var(--ink);background:var(--surface);border:1px dashed var(--line-strong);border-radius:var(--radius);padding:8px 12px;max-width:420px;margin-inline:auto}
+
+/* Discriminant */
+.disc-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;max-width:600px;margin:0 auto}
+.disc-item{padding:10px 8px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);text-align:center}
+.disc-item svg{max-width:100%;height:auto}
+.disc-item path{stroke-dasharray:420;stroke-dashoffset:420;animation:drawLine 1.5s var(--ease-out) forwards}
+.disc-item:nth-child(2) path{animation-delay:.2s}
+.disc-item:nth-child(3) path{animation-delay:.4s}
+.disc-item strong{display:block;font-size:.8rem;color:var(--ink);margin-top:4px;font-family:var(--font-display)}
+.disc-item span{font-size:.68rem;color:var(--muted)}
+
+/* Vieta */
+.vieta-wrap{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,.75fr);gap:16px;align-items:center;max-width:720px;margin:0 auto}
+.vieta-svg{width:100%;height:auto;max-width:460px;margin:0 auto;display:block;direction:ltr}
+.vieta-svg .vlabels .sub{font-size:.68em}
+.vieta-svg .vgrid line{stroke:var(--line);stroke-width:1;stroke-dasharray:2 5}
+.vieta-svg .vaxis{stroke:var(--line-strong);stroke-width:1.6}
+.vieta-svg .vticks text{font-size:10px;fill:var(--muted);font-family:var(--font-body);font-variant-numeric:tabular-nums}
+.vieta-svg .vtick-strong{font-size:12px;fill:var(--ink-2);font-weight:700;font-style:italic}
+.vieta-svg .vsym{stroke:var(--accent-3);stroke-width:1.2;stroke-dasharray:5 5;opacity:.6}
+.vieta-svg .vsym-label{font-size:10.5px;fill:var(--accent-3);opacity:.85}
+.vieta-svg .vcurve{stroke-dasharray:1200;stroke-dashoffset:1200;animation:drawLine 1.8s var(--ease-out) .1s forwards}
+.vieta-svg .vhalo{fill:currentColor;opacity:.22;animation:pulseGlow 2.2s ease-in-out infinite}
+.vieta-svg .vhalo.r{color:#ff8a70}.vieta-svg .vhalo.v{color:#7fe7c4}
+.vieta-svg .vdot.r{fill:#ff8a70}.vieta-svg .vdot.v{fill:#7fe7c4}
+.vieta-svg .vlabels .lab{font-size:12.5px;font-weight:700;font-family:var(--font-body)}
+.vieta-svg .vlabels .lab.r{fill:#ff8a70}.vieta-svg .vlabels .lab.v{fill:#7fe7c4;paint-order:stroke;stroke:var(--bg);stroke-width:3px;stroke-linejoin:round}
+.vieta-svg .vlabels .lab.eq{fill:var(--ink);font-size:13px;font-weight:800}
+.vieta-svg .vlabels .lab.neg{fill:#ff8a70;font-size:10.5px;font-weight:600;opacity:.85}
+.vieta-eq{display:flex;flex-direction:column;gap:8px;direction:rtl;text-align:right;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px}
+.veq-row{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:.8rem;color:var(--ink-2);padding-bottom:6px;border-bottom:1px dashed var(--line)}
+.veq-row .v{font-family:var(--font-display);font-weight:800;font-size:.95rem;color:var(--ink)}
+.veq-note{font-family:var(--font-display);font-weight:800;font-size:.92rem;color:var(--accent);text-align:left;padding:2px 0}
+.veq-note + .veq-note{color:var(--accent-3)}
+
+/* Number line (SVG) */
+.numberline{max-width:640px;margin:4px auto 0;direction:ltr}
+.numberline svg{display:block;width:100%;height:auto}
+.numberline .nl-line{stroke:var(--line-strong);stroke-width:2;stroke-linecap:round}
+.numberline .nl-tick{stroke:var(--line-strong);stroke-width:1.2}
+.numberline .nl-tick.major{stroke-width:1.8}
+.numberline .nl-num{font-size:12px;fill:var(--muted);font-family:var(--font-body)}
+.numberline .nl-halo{opacity:.25;animation:pulseGlow 2.2s ease-in-out infinite}
+.numberline .nl-halo.a{fill:var(--accent)}.numberline .nl-halo.b{fill:var(--accent-2)}.numberline .nl-halo.c{fill:var(--blue)}
+.numberline .nl-dot{stroke:var(--surface);stroke-width:2}
+.numberline .nl-dot.a{fill:var(--accent)}.numberline .nl-dot.b{fill:var(--accent-2)}.numberline .nl-dot.c{fill:var(--blue)}
+.numberline .nl-num.hot{font-weight:800;fill:var(--ink)}
+.numberline .nl-num.hot.b{fill:var(--accent-2)}.numberline .nl-num.hot.a{fill:var(--accent)}.numberline .nl-num.hot.c{fill:var(--blue)}
+.numberline .nl-brace{fill:none;stroke:var(--accent);stroke-width:1.4;opacity:.7;stroke-dasharray:400;stroke-dashoffset:400;animation:drawLine 1.2s var(--ease-out) .5s forwards}
+.numberline .nl-blabel{font-size:11px;fill:var(--accent);opacity:0;animation:fadeIn .5s ease 1.3s forwards;font-family:var(--font-body)}
+.nl-caption{margin-top:6px;font-size:.76rem;color:var(--muted);text-align:center;direction:rtl;line-height:1.9}
+.nl-caption b{color:var(--ink)}
+
+/* Absolute fold + coordinate */
+.absfold svg,.coord svg{width:100%;height:auto;max-width:600px;margin:0 auto;display:block}
+.absfold path,.coord line,.coord circle{transition:opacity .3s}
+
+/* ---------- Exam setup ---------- */
+.exam-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.exam-option{position:relative;padding:clamp(22px,3vw,30px);border:1px solid var(--line);border-radius:var(--radius-lg);background:var(--surface);overflow:hidden;transition:transform .25s var(--ease),border-color .25s,box-shadow .25s}
+.exam-option:hover{transform:translateY(-3px);border-color:var(--line-strong);box-shadow:var(--card-shadow)}
+.exam-option::after{content:"";position:absolute;left:-40px;bottom:-50px;width:170px;height:170px;border:1px dashed var(--line-strong);border-radius:50%;opacity:.5;pointer-events:none}
+.exam-option h2{font-size:clamp(1.3rem,2.4vw,1.75rem);margin:10px 0 8px}
+.exam-option p{color:var(--ink-2);font-size:.86rem;line-height:1.95;margin-bottom:16px}
+.exam-start{display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+.select{height:46px;padding:0 14px;border-radius:var(--radius);border:1.5px solid var(--line-strong);background:var(--surface-2);color:var(--ink);min-width:150px;font-weight:600}
+.select:focus{outline:2px solid var(--accent);outline-offset:2px}
+.exam-note{display:flex;align-items:center;gap:8px;margin-top:14px;padding:12px 16px;border-radius:var(--radius);border:1px dashed var(--line-strong);color:var(--muted);font-size:.76rem;line-height:1.8}
+.exam-note svg{flex-shrink:0}
+
+/* ---------- Progress layout ---------- */
+.progress-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:14px}
+
+/* ---------- Topic bars (results when <3 topics) ---------- */
+.topic-bars{display:flex;flex-direction:column;gap:10px;padding:8px 4px}
+.topic-bar{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr) 44px;gap:10px;align-items:center;font-size:.74rem;color:var(--ink-2)}
+.topic-bar .bar{height:8px;border-radius:99px;background:var(--line);overflow:hidden}
+.topic-bar .bar i{display:block;height:100%;background:var(--accent);border-radius:99px;transition:width .9s var(--ease)}
+.topic-bar b{font-variant-numeric:tabular-nums;text-align:left;color:var(--ink)}
+
+/* ---------- Quiz: selected option, timer, streak ---------- */
+.option.selected{border-color:var(--accent);background:var(--accent-soft);color:var(--ink);box-shadow:inset 0 0 0 1px var(--accent)}
+.option.selected .opt-letter{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.timer{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:999px;border:1px solid var(--line);font-size:.78rem;font-weight:700;font-variant-numeric:tabular-nums}
+.timer.warn{border-color:var(--danger);color:var(--danger);background:var(--danger-soft);animation:pulseGlow 1s infinite}
+.streak{display:inline-flex;align-items:center;gap:4px;font-size:.78rem;color:var(--accent-2);font-weight:700;font-variant-numeric:tabular-nums}
+
+/* ---------- Review (details) ---------- */
+.review-head::-webkit-details-marker{display:none}
+.review-head::after{content:"+";font-size:1.2rem;color:var(--muted);line-height:1;flex-shrink:0}
+.review-item[open] .review-head::after{content:"−"}
+.review-item[open] .review-head{border-bottom:1px solid var(--line)}
+.review-item[open] .review-body{display:block}
+.review-body p{margin-bottom:6px}
+.review-body strong{color:var(--ink)}
+
+/* ---------- Lab readout: strip under the 3D stage (RTL labels, LTR numbers) ---------- */
+.lab-readout{position:relative;z-index:2;display:flex;flex-wrap:wrap;gap:6px 18px;padding:10px 18px;border-top:1px solid var(--lab-line);background:rgba(8,15,12,.55);color:#bfe6d4;font-size:.76rem;direction:rtl}
+.ro-row{display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
+.ro-row .k{color:#8fb3a3}
+.ro-row .k sub{font-size:.7em}
+.ro-row .v{color:var(--accent);font-weight:700;font-variant-numeric:tabular-nums;direction:ltr}
+.lab-controls{border-top:0}
+
+/* ---------- Small helpers ---------- */
+.muted{color:var(--muted)}
+.big{font-size:2rem}
+.v{color:var(--accent);font-weight:800}
+
+/* ---------- Responsive ---------- */
+@media (max-width:1080px){
+  .feature-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:900px){
+  .home-split,.exam-grid,.progress-grid,.lesson-cta,.keypoints,.vieta-wrap{grid-template-columns:1fr}
+  .cta-actions{flex-direction:row;flex-wrap:wrap}
+  .feature-grid{grid-template-columns:1fr}
+  .daily-info{min-width:0}
+}
+@media (max-width:640px){
+  .daily-card{padding:16px;gap:12px}
+  .daily-badge{width:40px;height:40px}
+  .footer-inner{flex-direction:column;align-items:flex-start;gap:14px}
+  .disc-grid{gap:6px}
+  .disc-item{padding:6px 4px 10px}
+  .disc-item strong{font-size:.72rem}
+  .disc-item span{font-size:.6rem}
+  .home-stats{grid-template-columns:1fr 1fr}
+  .keypoint{padding:12px}
+  .lesson-cta{padding:18px}
+  .cta-actions{width:100%}
+  .cta-actions .btn{flex:1;min-width:140px}
+  .topic-bar{grid-template-columns:minmax(0,1fr) minmax(0,1.2fr) 40px}
+  .page-hero::after{font-size:9rem}
+}
+
+/* ---------- Reduced motion ---------- */
+html.reduce-motion .marquee-track,html.reduce-motion .nl-point,html.reduce-motion .timer.warn{animation:none}
+@media (prefers-reduced-motion:reduce){
+  .marquee-track,.nl-point,.timer.warn{animation:none}
+}
+
+/* ---------- Print ---------- */
+@media print{
+  .formula-marquee,.lesson-cta,.cta-actions,.page-hero::after,.visual-box .gdot{animation:none}
+  .visual-box{break-inside:avoid}
+}
