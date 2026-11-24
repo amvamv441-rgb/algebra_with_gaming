@@ -432,7 +432,8 @@
 
   function fmtVal(v) {
     if (!isFinite(v)) return '—';
-    return String(Math.round(v * 100) / 100);
+    const r = Math.round(v * 100) / 100;
+    return (r < 0 ? '−' : '') + String(Math.abs(r));   // Persian minus, never "-0"
   }
 
   function roRow(k, v) {
@@ -443,21 +444,24 @@
     const out = lab.querySelector('[data-readout]');
     if (!out) return;
     const name = lab.dataset.lab;
+    const nv = (v, d) => (typeof v === 'number' && isFinite(v) ? v : d);
     let html = '';
     if (name === 'sequence') {
       const mode = lab.querySelector('[data-mode].active')?.dataset.mode || 'arith';
-      const a = p.a, d = p.d, q = p.q, n = Math.round(p.n);
+      const a = nv(p.a, 0), d = nv(p.d, 0), q = nv(p.q, 1), n = Math.round(nv(p.n, 7));
+      const terms = Array.from({ length: n }, (_, i) => (mode === 'geo' ? a * Math.pow(q, i) : a + i * d));
+      const chips = `<div class="ro-terms" dir="ltr">${terms.map((v, i) => `<span class="ro-term"><b>${fmtVal(v)}</b><i>a<sub>${i + 1}</sub></i></span>`).join('')}</div>`;
       if (mode === 'geo') {
         const S = q === 1 ? a * n : a * (Math.pow(q, n) - 1) / (q - 1);
         html = roRow('دنباله هندسی', `a = ${fmtVal(a)}, q = ${fmtVal(q)}, n = ${n}`) +
-          roRow('مجموع <span dir="ltr">S<sub>n</sub></span>', fmtVal(S));
+          chips + roRow('مجموع <span dir="ltr">S<sub>n</sub></span>', fmtVal(S));
       } else {
         const S = n / 2 * (2 * a + (n - 1) * d);
         html = roRow('دنباله حسابی', `a = ${fmtVal(a)}, d = ${fmtVal(d)}, n = ${n}`) +
-          roRow('مجموع <span dir="ltr">S<sub>n</sub></span>', fmtVal(S));
+          chips + roRow('مجموع <span dir="ltr">S<sub>n</sub></span>', fmtVal(S));
       }
     } else if (name === 'parabola') {
-      const a = p.a || 0.1, b = p.b, c = p.c;
+      const a = nv(p.a, 0.1) || 0.1, b = nv(p.b, 0), c = nv(p.c, 0);
       const d = b * b - 4 * a * c;
       let roots = 'بدون ریشه حقیقی';
       if (d >= 0) {
@@ -484,81 +488,190 @@
     out.innerHTML = html;
   }
 
+  /* =========================================================
+     2D lab fallback: when WebGL / the 3D scene is unavailable the lab must still
+     be usable, so the same parameters are drawn as a live SVG chart.
+     ========================================================= */
+  function chartSVG(kind, p) {
+    const W = 460, H = 240;
+    const axis = (x0, x1, y0, y1) => {
+      const X = (v) => 26 + ((v - x0) / (x1 - x0)) * (W - 52);
+      const Y = (v) => H - 26 - ((v - y0) / (y1 - y0)) * (H - 52);
+      return { X, Y };
+    };
+    const curve = (fn, a, b, n, X, Y) => 'M' + Array.from({ length: n + 1 }, (_, i) => {
+      const x = a + (b - a) * i / n; return `${X(x).toFixed(1)} ${Y(fn(x)).toFixed(1)}`;
+    }).join(' L');
+    if (kind === 'sequence') {
+      const n = clamp(Math.round(p.n || 7), 3, 10);
+      const geo = p.mode === 'geo';
+      const a = typeof p.a === 'number' ? p.a : 1, d = typeof p.d === 'number' ? p.d : 1, q = typeof p.q === 'number' ? p.q : 2;
+      const vals = Array.from({ length: n }, (_, i) => (geo ? a * Math.pow(q, i) : a + i * d));
+      const lo = Math.min(0, ...vals) * 1.2, hi = Math.max(0, ...vals) * 1.2;
+      const top = 46, bottom = H - 34;                       // room for the a₁ / aₙ row
+      const X = (i) => W - 42 - i * ((W - 96) / Math.max(1, n - 1));   // RTL: a₁ sits on the right
+      const Y = (v) => bottom - ((v - lo) / ((hi - lo) || 1)) * (bottom - top);
+      const zero = Y(0), bw = Math.min(34, (W - 100) / n * 0.62);
+      return `<svg viewBox="0 0 ${W} ${H}" class="lab2d-svg" role="img" aria-label="نمودار دنباله">
+        <text x="${X(0).toFixed(1)}" y="16" class="lab2d-lab gold" text-anchor="middle">a₁ = ${fmtVal(vals[0])}</text>
+        <text x="${X(n - 1).toFixed(1)}" y="16" class="lab2d-lab gold" text-anchor="middle">aₙ = ${fmtVal(vals[n - 1])}</text>
+        <line x1="24" y1="${zero.toFixed(1)}" x2="${W - 18}" y2="${zero.toFixed(1)}" stroke="var(--line-strong)" stroke-width="1.4"/>
+        ${vals.map((v, i) => {
+          const y = Y(v), h = Math.abs(zero - y);
+          const labelY = v >= 0 ? y - 9 : y + 16;
+          return `<rect x="${(X(i) - bw / 2).toFixed(1)}" y="${Math.min(y, zero).toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(2, h).toFixed(1)}" rx="4" fill="${geo ? '#ff8a70' : '#7fe7c4'}" opacity=".92"/>
+            <circle cx="${X(i).toFixed(1)}" cy="${y.toFixed(1)}" r="3.4" fill="#f2e85c"/>
+            <text x="${X(i).toFixed(1)}" y="${labelY.toFixed(1)}" class="lab2d-val" text-anchor="middle">${fmtVal(v)}</text>`;
+        }).join('')}
+        <text x="${W - 20}" y="${(zero + 16).toFixed(1)}" class="lab2d-lab" text-anchor="end">n</text>
+      </svg>`;
+    }
+    if (kind === 'parabola' || kind === 'absolute') {
+      const a = typeof p.a === 'number' ? p.a : 1, b = typeof p.b === 'number' ? p.b : 0, c = typeof p.c === 'number' ? p.c : 0;
+      const f = (x) => a * x * x + b * x + c;
+      const x0 = -6, x1 = 6, { X, Y } = axis(x0, x1, -6, 8);
+      const sgn = (v) => (v >= 0 ? '+' : '−') + Math.abs(v);
+      return `<svg viewBox="0 0 ${W} ${H}" class="lab2d-svg" role="img" aria-label="نمودار سهمی">
+        <line x1="20" y1="${Y(0).toFixed(1)}" x2="${W - 16}" y2="${Y(0).toFixed(1)}" stroke="var(--line-strong)" stroke-width="1.4"/>
+        <line x1="${X(0).toFixed(1)}" y1="16" x2="${X(0).toFixed(1)}" y2="${H - 16}" stroke="var(--line-strong)" stroke-width="1.4"/>
+        <path d="${curve(f, x0, x1, 90, X, Y)}" fill="none" stroke="#7fe7c4" stroke-width="3" stroke-linecap="round"/>
+        <circle cx="${X(-b / (2 * a)).toFixed(1)}" cy="${Y(f(-b / (2 * a))).toFixed(1)}" r="4.5" fill="#f2e85c"/>
+        <text x="${W - 24}" y="32" class="lab2d-lab" text-anchor="end">f(x) = ${fmtVal(a)}x² ${sgn(b)}x ${sgn(c)}</text>
+      </svg>`;
+    }
+    if (kind === 'geometry') {
+      const { X, Y } = axis(-7, 7, -7, 7);
+      const x1 = p.x1 || 0, y1 = p.y1 || 0, x2 = p.x2 || 0, y2 = p.y2 || 0;
+      const dx = x2 - x1, dy = y2 - y1;
+      return `<svg viewBox="0 0 ${W} ${H}" class="lab2d-svg" role="img" aria-label="نمودار پاره‌خط">
+        <line x1="20" y1="${Y(0).toFixed(1)}" x2="${W - 16}" y2="${Y(0).toFixed(1)}" stroke="var(--line-strong)" stroke-width="1.2"/>
+        <line x1="${X(0).toFixed(1)}" y1="16" x2="${X(0).toFixed(1)}" y2="${H - 16}" stroke="var(--line-strong)" stroke-width="1.2"/>
+        <line x1="${X(x1).toFixed(1)}" y1="${Y(y1).toFixed(1)}" x2="${X(x2).toFixed(1)}" y2="${Y(y2).toFixed(1)}" stroke="#7fe7c4" stroke-width="3" stroke-linecap="round"/>
+        <circle cx="${X(x1).toFixed(1)}" cy="${Y(y1).toFixed(1)}" r="5" fill="#f2e85c"/><text x="${(X(x1) + 9).toFixed(1)}" y="${(Y(y1) - 8).toFixed(1)}" class="lab2d-lab">A</text>
+        <circle cx="${X(x2).toFixed(1)}" cy="${Y(y2).toFixed(1)}" r="5" fill="#ff8a70"/><text x="${(X(x2) + 9).toFixed(1)}" y="${(Y(y2) - 8).toFixed(1)}" class="lab2d-lab">B</text>
+        <text x="${(X((x1 + x2) / 2) + 8).toFixed(1)}" y="${(Y((y1 + y2) / 2) - 8).toFixed(1)}" class="lab2d-lab">${fmtVal(Math.sqrt(dx * dx + dy * dy))}</text>
+      </svg>`;
+    }
+    return `<svg viewBox="0 0 ${W} ${H}" class="lab2d-svg" role="img" aria-label="نمودار تابع رادیکالی">
+      <line x1="20" y1="${(H / 2).toFixed(1)}" x2="${W - 16}" y2="${(H / 2).toFixed(1)}" stroke="var(--line-strong)" stroke-width="1.4"/>
+      <line x1="60" y1="16" x2="60" y2="${H - 16}" stroke="var(--line-strong)" stroke-width="1.4"/>
+      <path d="M60 ${(H / 2).toFixed(1)} Q200 30 420 40" fill="none" stroke="#7fe7c4" stroke-width="3" stroke-linecap="round"/>
+      <circle cx="330" cy="46" r="5" fill="#f2e85c"/><text x="342" y="42" class="lab2d-lab">(7, 3)</text>
+      <circle cx="150" cy="118" r="5" fill="#ff8a70" opacity=".7"/><text x="162" y="132" class="lab2d-lab">(2, 2) ✗</text>
+    </svg>`;
+  }
+
+  function paint2D(lab, name, p) {
+    const box = lab.querySelector('.lab-2d');
+    if (box) box.innerHTML = chartSVG(name, p);
+  }
+
   function mountLabs(root) {
     root.querySelectorAll('[data-lab]').forEach((lab) => {
       const name = lab.dataset.lab;
       const canvas = lab.querySelector('canvas');
       if (!canvas) return;
       const params = Object.assign({}, LAB_DEFAULTS[name] || {});
-      const scene = AWG.Scenes.mount(canvas, name, params);
-      if (!scene) {
+      let scene = null;
+      try { scene = AWG.Scenes.mount(canvas, name, params); } catch (e) { scene = null; }
+
+      // one code path for 3D (WebGL) and 2D (SVG fallback): every control redraws the lab
+      const apply = (p) => {
+        const full = Object.assign({}, p, { mode: lab.querySelector('[data-mode].active')?.dataset.mode || 'arith' });
+        // the 2D chart always mirrors the live parameters, so it is never stale
+        paint2D(lab, name, full);
+        if (scene) {
+          if (name === 'sequence') scene.setParams(full);
+          else if (name === 'parabola' || name === 'absolute') scene.setParams({ a: p.a === 0 ? 0.1 : p.a, b: p.b, c: p.c });
+          else if (name === 'geometry') scene.setParams(p);
+          else if (name === 'radical' && typeof p.speed === 'number') scene.speed = p.speed;
+          if (typeof scene.drawNow === 'function') scene.drawNow();
+        }
+        updateReadout(lab, p);
+      };
+
+      {
         const stage = lab.querySelector('.lab-stage');
-        if (stage) stage.innerHTML = `<div class="lab-fallback"><div><svg viewBox="0 0 300 160" aria-hidden="true"><path d="M20 140 Q150 -20 280 140" fill="none" stroke="#7fe7c4" stroke-width="3"/><path d="M20 140h260" stroke="#8fa398" stroke-dasharray="4 6"/><circle cx="150" cy="40" r="5" fill="#f2e85c"/></svg><p>این بخش به WebGL نیاز دارد. مرورگر یا دستگاه شما آن را پشتیبانی نمی‌کند، ولی بقیه درس و تمرین‌ها کامل کار می‌کنند.</p></div></div>`;
-        return;
+        if (stage) {
+          const box = document.createElement('div');
+          box.className = 'lab-2d';
+          stage.insertBefore(box, stage.firstChild);
+        }
+        paint2D(lab, name, Object.assign({}, params, { mode: 'arith' }));
       }
-      lab._scene = scene;
-      if (name === 'absolute') {
-        scene.onFold = (t) => {
-          if (!scene.holdFold) {
-            const fold = lab.querySelector('#fold');
-            if (fold) fold.value = Math.round(t * 100);
-            const val = lab.querySelector('[data-val="fold"]');
-            if (val) val.textContent = fa(Math.round(t * 100));
-          }
-        };
+      if (!scene) {
+        lab.dataset.mode2d = '1';
+        const hint = lab.querySelector('.lab-hint');
+        if (hint) hint.innerHTML = `${Icons.spark} نسخه‌ی دوبعدی؛ با اسلایدرها زنده تغییر می‌کند`;
+      } else {
+        lab._scene = scene;
+        if (name === 'absolute') {
+          scene.onFold = (t) => {
+            if (!scene.holdFold) {
+              const fold = lab.querySelector('#fold');
+              if (fold) fold.value = Math.round(t * 100);
+              const val = lab.querySelector('[data-val="fold"]');
+              if (val) val.textContent = fa(Math.round(t * 100));
+            }
+          };
+        }
       }
 
-      // controls
       lab.querySelectorAll('input[type=range]').forEach((input) => {
-        input.addEventListener('input', () => {
+        const onChange = () => {
           const p = readParams(lab);
-          if (name === 'absolute' && input.id === 'fold') {
+          const cv = lab.querySelector(`[data-val="${input.id}"]`);
+          if (cv) cv.textContent = fa(fmtVal(parseFloat(input.value)));
+          if (scene && name === 'absolute' && input.id === 'fold') {
             scene.holdFold = true;
             scene.setFold(input.value / 100);
             const auto = lab.querySelector('[data-auto]');
             if (auto) auto.classList.remove('active');
-          } else if (name === 'sequence') {
-            const mode = lab.querySelector('[data-mode].active')?.dataset.mode || 'arith';
-            scene.setParams(Object.assign({}, p, { mode }));
-          } else if (name === 'parabola') {
-            scene.setParams({ a: p.a === 0 ? 0.1 : p.a, b: p.b, c: p.c });
-          } else if (name === 'geometry') {
-            scene.setParams(p);
-          } else if (name === 'radical') {
-            scene.speed = p.speed;
           }
-          updateReadout(lab, p);
-        });
+          apply(p);
+        };
+        input.addEventListener('input', onChange);
+        input.addEventListener('change', onChange);
       });
 
       lab.querySelectorAll('[data-mode]').forEach((btn) => {
         btn.addEventListener('click', () => {
           lab.querySelectorAll('[data-mode]').forEach((b) => b.classList.remove('active'));
           btn.classList.add('active');
-          const p = readParams(lab);
-          scene.setParams(Object.assign({}, p, { mode: btn.dataset.mode }));
-          updateReadout(lab, p);
+          apply(readParams(lab));
         });
       });
 
       const pause = lab.querySelector('[data-pause]');
-      if (pause) pause.addEventListener('click', () => {
+      if (pause && scene) pause.addEventListener('click', () => {
         scene.paused = !scene.paused;
         pause.innerHTML = scene.paused ? `${Icons.play} پخش` : `${Icons.pause} توقف`;
       });
+      if (pause && !scene) pause.hidden = true;
 
       const auto = lab.querySelector('[data-auto]');
-      if (auto) auto.addEventListener('click', () => {
+      if (auto && scene) auto.addEventListener('click', () => {
         scene.holdFold = !scene.holdFold;
         auto.classList.toggle('active', !scene.holdFold);
       });
+      if (auto && !scene) auto.hidden = true;
 
       lab.querySelectorAll('[data-zoom]').forEach((b) => {
+        if (!scene) { b.hidden = true; return; }
         b.addEventListener('click', () => scene.zoom(b.dataset.zoom === 'in' ? 0.25 : -0.25));
       });
 
       updateReadout(lab, readParams(lab));
     });
+  }
+
+  // The header always states which build the browser is really running: if the chip shows an
+  // older tag than the deployed one, the page (or a proxy) is serving a stale copy.
+  function stampBuild() {
+    const BUILD = '2026-11-24b';
+    const chip = document.getElementById('buildChip');
+    if (chip) chip.textContent = `build ${BUILD}`;
+    return BUILD;
   }
 
   function renderVisuals(root) {
@@ -591,8 +704,7 @@
   }
 
   function discriminantVisual() {
-    // Exact parabolas in a 150×100 box (axis at y=70): f(x) = A·(x−h)² + c  (screen y grows downward)
-    const AX = 70;
+    // Exact parabolas in a 160×112 box. Screen y grows downward.
     const sample = (fn, x0, x1, n) => {
       const pts = [];
       for (let i = 0; i <= n; i++) { const x = x0 + (x1 - x0) * i / n; pts.push([x, fn(x)]); }
@@ -600,20 +712,27 @@
     };
     const path = (pts) => 'M' + pts.map(([x, y]) => `${x.toFixed(1)} ${y.toFixed(1)}`).join(' L');
     const cases = [
-      { t: 'Δ > 0', s: 'دو ریشه‌ی متمایز', c: '#7fe7c4', A: 0.0384, h: 75, c0: -28, roots: [48, 102] },
-      { t: 'Δ = 0', s: 'ریشه‌ی تکراری', c: '#f2e85c', A: 0.03, h: 75, c0: 0, roots: [75] },
-      { t: 'Δ < 0', s: 'بدون ریشه‌ی حقیقی', c: '#ff8a70', A: 0.03, h: 75, c0: -28, roots: [] }
+      { t: 'Δ > 0', s: 'دو ریشه‌ی متمایز', c: '#7fe7c4', AX: 74, A: 0.020, h: 80, r: 28, gap: 0, roots: [52, 108] },
+      { t: 'Δ = 0', s: 'ریشه‌ی تکراری', c: '#f2e85c', AX: 74, A: 0.013, h: 80, r: 0, gap: 0, roots: [80] },
+      { t: 'Δ < 0', s: 'بدون ریشه‌ی حقیقی', c: '#ff8a70', AX: 100, A: 0.014, h: 80, r: 0, gap: 40, roots: [] }
     ];
     return `<div class="disc-grid">
       ${cases.map((k, ci) => {
-        const fn = (x) => AX + k.A * (x - k.h) * (x - k.h) + k.c0;
-        const pts = sample(fn, 20, 130, 72).filter(([, y]) => y <= 98);
-        const roots = k.roots.map((x) => `<circle cx="${x}" cy="${AX}" r="4.5" fill="${k.c}" stroke="var(--surface)" stroke-width="1.5"/>`).join('');
+        const fn = (x) => k.AX + k.A * ((x - k.h) * (x - k.h) - k.r * k.r) - k.gap;
+        const pts = sample(fn, 36, 124, 72).filter(([, y]) => y <= 106);
+        const roots = k.roots.map((x) => `<circle cx="${x}" cy="${k.AX}" r="4.5" fill="${k.c}" stroke="var(--surface)" stroke-width="1.5"/>`).join('');
+        const drop = k.gap ? `<line x1="${k.h}" y1="${(k.AX - k.gap - k.A * k.r * k.r).toFixed(1)}" x2="${k.h}" y2="${k.AX - 4}" stroke="${k.c}" stroke-width="1.2" stroke-dasharray="3 3" opacity=".7"/>` : '';
+        const rootLabels = k.roots.length === 2
+          ? `<text x="52" y="${k.AX - 12}" text-anchor="middle" class="d-lab">x<tspan class="sub">1</tspan></text><text x="108" y="${k.AX - 12}" text-anchor="middle" class="d-lab">x<tspan class="sub">2</tspan></text>`
+          : k.roots.length === 1 ? `<text x="${k.h + 12}" y="${k.AX - 7}" class="d-lab">x</text>` : '';
         return `<div class="disc-item">
-          <svg viewBox="0 0 150 100" aria-hidden="true">
-            <line x1="10" y1="${AX}" x2="140" y2="${AX}" stroke="var(--line-strong)" stroke-width="1.5"/>
+          <svg viewBox="0 0 160 112" aria-hidden="true">
+            <line x1="14" y1="${k.AX}" x2="146" y2="${k.AX}" stroke="var(--line-strong)" stroke-width="1.5"/>
+            <path d="M146 ${k.AX} l-6 -3.5 v7 z" fill="var(--line-strong)"/>
+            <text x="147" y="${k.AX - 5}" class="d-lab">x</text>
+            ${drop}
             <path d="${path(pts)}" fill="none" stroke="${k.c}" stroke-width="3" stroke-linecap="round" style="animation-delay:${ci * 0.15}s"/>
-            ${roots}
+            ${roots}${rootLabels}
           </svg>
           <strong>${k.t}</strong><span>${k.s}</span>
         </div>`;
@@ -727,16 +846,62 @@
   }
 
   function absfoldVisual() {
+    // y = x² − 4x + 3  (roots 1 and 3, vertex (2, −1)).
+    // Above the axis: solid teal. Under the axis: dashed grey, and its mirror is drawn solid above the axis.
+    // On first view a gold ghost of the negative part folds up over the axis and fades onto that mirror.
+    const W = 440, H = 250;
+    const x0 = -0.7, x1 = 4.7, y0 = -2.3, y1 = 5.3;
+    const sx = (x) => 28 + ((x - x0) / (x1 - x0)) * (W - 56);
+    const sy = (y) => H - 28 - ((y - y0) / (y1 - y0)) * (H - 56);
+    const f = (x) => x * x - 4 * x + 3;
+    const P = (x, y) => `${sx(x).toFixed(1)} ${sy(y).toFixed(1)}`;
+    const sample = (fn, a, b, n) => { const o = []; for (let i = 0; i <= n; i++) { const x = a + (b - a) * i / n; o.push(P(x, fn(x))); } return o; };
+    const line = (pts) => 'M' + pts.join(' L');
+    const still = Store.state.settings.reduceMotion;
+    const AY = sy(0);
+    const leftArm = line(sample(f, -0.45, 1, 26));
+    const rightArm = line(sample(f, 3, 4.45, 26));
+    const under = line(sample(f, 1, 3, 48));                       // the part below the axis
+    const mirror = line(sample((x) => -f(x), 1, 3, 48));           // its reflection above the axis
+    // matrix(1,0,0,k,0,(1-k)·AY):  k = 1 → as it is (under the axis), k = -1 → mirrored above it
+    const mat = (k) => `matrix(1,0,0,${k},0,${((1 - k) * AY).toFixed(2)})`;
+    const ghost = still ? '' : `<g class="af-ghost">
+          <path d="${under}" fill="none" stroke="#f2e85c" stroke-width="3.4" stroke-linecap="round">
+            <animateTransform attributeName="transform" type="matrix" additive="replace" begin="0.5s" dur="2.4s" fill="freeze"
+              calcMode="spline" keyTimes="0;0.5;1" keySplines=".5 0 .4 1;.5 0 .4 1"
+              values="${mat(1)};${mat(-1)};${mat(-1)}"/>
+            <animate attributeName="opacity" begin="0.5s" dur="2.4s" fill="freeze" values="1;1;0" keyTimes="0;0.72;1"/>
+          </path>
+        </g>`;
     return `<div class="absfold">
-      <svg viewBox="0 0 420 220" aria-hidden="true">
-        <line x1="20" y1="150" x2="400" y2="150" stroke="var(--line-strong)" stroke-width="1.5"/>
-        <line x1="210" y1="20" x2="210" y2="210" stroke="var(--line-strong)" stroke-width="1.5"/>
-        <path d="M40 30 Q210 290 380 30" fill="none" stroke="var(--muted)" stroke-width="2.5" stroke-dasharray="6 6"/>
-        <path d="M40 30 Q210 270 380 30" fill="none" stroke="#7fe7c4" stroke-width="3"/>
-        <path d="M110 150 Q210 270 310 150" fill="none" stroke="#7fe7c4" stroke-width="3"/>
-        <circle cx="110" cy="150" r="5" fill="#f2e85c"/><circle cx="310" cy="150" r="5" fill="#f2e85c"/>
-        <text x="210" y="205" text-anchor="middle" fill="var(--muted)" font-size="13">بخش زیر محور، قرینه می‌شود</text>
+      <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="نمودار y = x² − 4x + 3؛ بخش زیر محور خط‌چین و قرینه‌ی آن بالای محور ممتد است">
+        <defs>
+          <marker id="afArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--line-strong)"/></marker>
+        </defs>
+        <line x1="${sx(x0).toFixed(1)}" y1="${AY.toFixed(1)}" x2="${sx(x1).toFixed(1)}" y2="${AY.toFixed(1)}" stroke="var(--line-strong)" stroke-width="1.6" marker-end="url(#afArrow)"/>
+        <line x1="${sx(0).toFixed(1)}" y1="${sy(y0).toFixed(1)}" x2="${sx(0).toFixed(1)}" y2="${sy(y1).toFixed(1)}" stroke="var(--line-strong)" stroke-width="1.6" marker-end="url(#afArrow)"/>
+        <text x="${(sx(x1) - 4).toFixed(1)}" y="${(AY - 8).toFixed(1)}" class="d-lab">x</text>
+        <text x="${(sx(0) + 7).toFixed(1)}" y="${(sy(y1) + 13).toFixed(1)}" class="d-lab">y</text>
+
+        <!-- above the axis: solid; under the axis: dashed + grey -->
+        <path d="${leftArm}" fill="none" stroke="#7fe7c4" stroke-width="3.2" stroke-linecap="round"/>
+        <path d="${rightArm}" fill="none" stroke="#7fe7c4" stroke-width="3.2" stroke-linecap="round"/>
+        <path d="${under}" fill="none" stroke="var(--muted)" stroke-width="2.4" stroke-dasharray="6 6" opacity=".9"/>
+        <!-- the reflection of that dashed part, folded up -->
+        <path d="${mirror}" fill="none" stroke="#7fe7c4" stroke-width="3.2" stroke-linecap="round"/>
+        ${ghost}
+
+        <circle cx="${sx(2).toFixed(1)}" cy="${sy(-1).toFixed(1)}" r="4" fill="var(--muted)" opacity=".85"/>
+        <circle cx="${sx(1).toFixed(1)}" cy="${AY.toFixed(1)}" r="5.5" fill="#f2e85c"/>
+        <circle cx="${sx(3).toFixed(1)}" cy="${AY.toFixed(1)}" r="5.5" fill="#f2e85c"/>
+
+        <text x="${sx(4.62).toFixed(1)}" y="${(sy(4.35)).toFixed(1)}" class="af-lab muted" text-anchor="end">y = f(x)</text>
+        <text x="${sx(2).toFixed(1)}" y="${(sy(1) - 16).toFixed(1)}" class="af-lab teal" text-anchor="middle">قرینه بالا می‌آید ← |f(x)|</text>
+        <text x="${sx(2).toFixed(1)}" y="${(sy(-1) + 24).toFixed(1)}" class="af-lab muted" text-anchor="middle">بخش زیر محور (خط‌چین)</text>
+        <text x="${sx(1).toFixed(1)}" y="${(AY + 20).toFixed(1)}" class="af-lab gold" text-anchor="middle">۱</text>
+        <text x="${sx(3).toFixed(1)}" y="${(AY + 20).toFixed(1)}" class="af-lab gold" text-anchor="middle">۳</text>
       </svg>
+      <div class="af-caption">بخش <b>خط‌چین خاکستری</b> زیر محور می‌ماند و <b>قرینه‌اش بالای محور</b> کشیده می‌شود؛ منحنی کامل، همان <span dir="ltr">y = |x² − 4x + 3|</span> است.</div>
     </div>`;
   }
 
@@ -1323,6 +1488,87 @@
     </svg>`;
   }
 
+  // Roadmap of the five lessons: done ones ticked, the next one glowing, an animated flow toward it
+  function lessonPathHTML(currentId) {
+    const lessons = AWG.LESSONS.slice().sort((a, b) => +a.id - +b.id);
+    const isDone = (id) => { const st = Store.state.lessons[id]; return !!(st && st.attempts && st.best >= 0.6); };
+    let nextId = currentId && +currentId < lessons.length ? String(+currentId + 1) : null;
+    if (!nextId) { const firstOpen = lessons.find((l) => !isDone(l.id)); nextId = firstOpen ? firstOpen.id : null; }
+    const node = (l) => {
+      const done = isDone(l.id);
+      const cls = ['lp-node', done ? 'done' : '', l.id === currentId ? 'current' : '', l.id === nextId ? 'next' : ''].filter(Boolean).join(' ');
+      return `<a class="${cls}" href="#/lesson/${l.id}" style="--c:${l.color}">
+        <span class="lp-dot">${done ? '✓' : l.icon}</span>
+        <span class="lp-txt"><b>درس ${fa(l.num)}</b><small>${esc(l.short)}</small></span>
+      </a>`;
+    };
+    let track = '';
+    lessons.forEach((l, i) => {
+      track += node(l);
+      if (i < lessons.length - 1) {
+        const prevDone = isDone(l.id);
+        const flow = prevDone && l.id === currentId;   // link right after the lesson just finished
+        track += `<span class="lp-link ${prevDone ? 'done' : ''} ${flow ? 'flow' : ''}" style="--c:${l.color}"><i></i></span>`;
+      }
+    });
+    const finished = isLessonSource(currentId) && isDone(currentId);
+    const head = isLessonSource(currentId)
+      ? (finished ? `درس ${fa(currentId)} تمام شد!` : `درس ${fa(currentId)} را ادامه بده`)
+      : 'کدام درس را قوی‌تر کنیم؟';
+    const remaining = lessons.filter((l) => !isDone(l.id)).length;
+    const sub = isLessonSource(currentId)
+      ? (remaining > 0 ? `${fa(remaining)} درس تا پایان فصل اول مانده` : 'هر پنج درس را کامل کردی؛ نوبت آزمون جامع است')
+      : 'روی هر درس بزن تا مرور کنی، یا از دکمه‌ی پایین شروع کن';
+    const sparks = finished ? `<span class="lp-sparks" aria-hidden="true">${Array.from({ length: 10 }, (_, i) => `<i style="--a:${i * 36}deg;--d:${(i % 3) * 0.12}s"></i>`).join('')}</span>` : '';
+    return `<section class="lesson-path ${finished ? 'is-finished' : ''}" style="--c:${(AWG.lessonById(currentId) || {}).color || 'var(--accent)'}" aria-label="مسیر درس‌ها">
+      ${sparks}
+      <div class="lp-head">
+        <div>
+          <span class="eyebrow">${finished ? 'درس ثبت شد' : 'مسیر فصل'}</span>
+          <h2 class="display">${head}</h2>
+          <p class="lp-sub">${sub}</p>
+        </div>
+        ${finished ? `<span class="lp-check" aria-hidden="true"><svg viewBox="0 0 52 52"><circle cx="26" cy="26" r="22"/><path d="M15 27l8 8 15-16"/></svg></span>` : ''}
+      </div>
+      <div class="lp-track">${track}</div>
+    </section>`;
+  }
+
+  // Bottom of the results page: "درس ۱ تمام شد → درس ۲" with a bold, animated next button
+  function lessonFinishHTML(currentId) {
+    const lessons = AWG.LESSONS.slice().sort((a, b) => +a.id - +b.id);
+    const next = currentId && +currentId < lessons.length ? AWG.lessonById(String(+currentId + 1)) : null;
+    const done = lessons.filter((l) => { const st = Store.state.lessons[l.id]; return !!(st && st.attempts && st.best >= 0.6); }).length;
+    const pctDone = Math.round((done / lessons.length) * 100);
+    const title = currentId ? `درس ${fa(currentId)} تمام شد` : 'مسیرت را انتخاب کن';
+    const sub = next
+      ? 'برو سراغ درس بعدی؛ همین‌جا ادامه بده.'
+      : (currentId ? 'پنج درس کامل شد؛ حالا آزمون جامع فصل اول.' : 'نتیجه‌ات ثبت شد. یک درس را انتخاب کن و ادامه بده.');
+    const btn = next
+      ? `<a class="finish-next" href="#/lesson/${next.id}" style="--c:${next.color}">
+           <span class="fn-badge"><svg viewBox="0 0 52 52" aria-hidden="true"><circle cx="26" cy="26" r="22"/><path d="M15 27l8 8 15-16"/></svg></span>
+           <span class="fn-text"><b>${title}</b><small>درس ${fa(next.id)} · ${esc(next.short)}</small></span>
+           <span class="fn-cta">درس بعدی ${Icons.arrow || '←'}</span>
+         </a>`
+      : `<a class="finish-next finish-final" href="#/exam" style="--c:var(--accent)">
+           <span class="fn-badge"><svg viewBox="0 0 52 52" aria-hidden="true"><circle cx="26" cy="26" r="22"/><path d="M15 27l8 8 15-16"/></svg></span>
+           <span class="fn-text"><b>${title}</b><small>همه‌ی درس‌ها را پاس کردی</small></span>
+           <span class="fn-cta">آزمون جامع ${Icons.arrow || '←'}</span>
+         </a>`;
+    return `<section class="lesson-finish" aria-label="پایان درس">
+      <div class="lf-track" aria-hidden="true">
+        ${lessons.map((l) => {
+          const st = Store.state.lessons[l.id];
+          const ok = !!(st && st.attempts && st.best >= 0.6);
+          return `<span class="lf-step ${ok ? 'ok' : ''} ${l.id === currentId ? 'now' : ''}" style="--c:${l.color}"><i></i><em>${fa(l.num)}</em></span>`;
+        }).join('')}
+        <span class="lf-fill" style="width:${pctDone}%"></span>
+      </div>
+      ${btn}
+      <p class="lf-note">${sub}</p>
+    </section>`;
+  }
+
   function renderResults(root, s, examXP) {
     releaseSession(s);
     const total = s.questions.length;
@@ -1368,6 +1614,13 @@
     const lessonId = isLessonSource(s.source) ? s.source : null;
     const nextId = lessonId && +lessonId < 5 ? String(+lessonId + 1) : null;
     const nextHref = nextId ? `#/lesson/${nextId}` : '#/exam';
+    // the roadmap + "next lesson" belong to lesson practice and the two big exams (not the daily challenge)
+    const showPath = !!lessonId || s.source === 'final' || s.source === 'konkoor';
+    const dailyRun = s.source === 'daily';
+    const showPathSafe = showPath && !dailyRun;
+    // finishing a lesson (a pass) is worth its own celebration
+    const finishedLesson = !!(lessonId && pct >= 60);
+    if (finishedLesson && pct < 80) Confetti.celebrate(90);   // the 80%+ case already celebrates above
 
     const review = s.questions.map((q, i) => {
       const a = s.answers[i];
@@ -1396,11 +1649,12 @@
         <h1 class="result-title">${title}</h1>
         <p class="result-sub">${msg}</p>
         <div class="result-actions">
-          <button type="button" class="btn btn-primary" id="retryBtn">${Icons.refresh} تمرین دوباره</button>
-          ${nextId ? `<a class="btn" href="${nextHref}">درس بعدی ←</a>` : `<a class="btn" href="#/exam">آزمون جامع</a>`}
+          <button type="button" class="btn" id="retryBtn">${Icons.refresh} تمرین دوباره</button>
+          ${showPath ? '' : `<a class="btn btn-primary" href="${nextHref}">آزمون جامع</a>`}
           <a class="btn btn-ghost" href="#/">خانه</a>
         </div>
       </div>
+      ${showPathSafe ? lessonPathHTML(lessonId) : ''}
 
       <div class="results-grid">
         <div class="stat"><div class="stat-num">${fa(correct)}</div><div class="stat-label">پاسخ درست</div></div>
@@ -1420,6 +1674,7 @@
 
       <h2 class="block-title" style="margin-top:28px">مرور پاسخ‌ها</h2>
       <div class="review">${review}</div>
+      ${showPathSafe ? lessonFinishHTML(lessonId) : ''}
     </div>`;
 
     AWG.renderMath(root);
@@ -1577,7 +1832,7 @@
 
           <div class="modal-section">
             <h3>${Icons.book} درباره</h3>
-            <p class="muted" style="font-size:.76rem;line-height:2">حسابان ۱ — آزمایشگاه فصل اول، نسخه ۱۴۰۴ (build 2026-11-23b). محتوا بر اساس سرفصل رسمی فصل اول حسابان (۱) پایه یازدهم ریاضی و فیزیک تهیه شده است. همه داده‌ها روی دستگاه خودت ذخیره می‌شود.</p>
+            <p class="muted" style="font-size:.76rem;line-height:2">حسابان ۱ — آزمایشگاه فصل اول، نسخه ۱۴۰۴ (build 2026-11-24b). محتوا بر اساس سرفصل رسمی فصل اول حسابان (۱) پایه یازدهم ریاضی و فیزیک تهیه شده است. همه داده‌ها روی دستگاه خودت ذخیره می‌شود.</p>
           </div>
         </div>
         <div class="modal-foot"><button type="button" class="btn btn-primary" data-close>بستن</button></div>
@@ -1703,6 +1958,7 @@
      BOOT
      ========================================================= */
   function boot() {
+    stampBuild();
     Store.load();
     Theme.init();
     Toast.init();
