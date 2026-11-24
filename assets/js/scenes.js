@@ -22,7 +22,7 @@
   function fmt(v) {
     if (!isFinite(v)) return '—';
     const r = Math.round(v * 100) / 100;
-    return String(r).replace(/\.0+$/, '');
+    return (r < 0 ? '−' : '') + String(Math.abs(r)).replace(/\.0+$/, '');
   }
   function roundRect(ctx, x, y, w, h, r) {
     const rr = Math.min(r, w / 2, h / 2);
@@ -59,14 +59,19 @@
     const fs = opts.fontSize || 44;
     const pad = opts.pad || 14;
     const font = `600 ${fs}px Vazirmatn, Estedad, sans-serif`;
-    const measure = document.createElement('canvas').getContext('2d');
-    measure.font = font;
-    const tw = Math.ceil(measure.measureText(text).width);
+    let tw = 0;
+    try {
+      const measure = document.createElement('canvas').getContext('2d');
+      if (measure) { measure.font = font; tw = Math.ceil(measure.measureText(text).width); }
+    } catch (e) { tw = 0; }
+    // fonts can still be loading (or canvas measuring can fail): never produce a zero-width badge
+    if (!tw || !isFinite(tw)) tw = Math.ceil(String(text).length * fs * 0.62);
     const w = tw + pad * 2;
     const h = fs + pad * 2;
     const c = document.createElement('canvas');
-    c.width = w; c.height = h;
+    c.width = Math.max(4, w); c.height = Math.max(4, h);
     const ctx = c.getContext('2d');
+    if (!ctx) { const blank = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, opacity: 0 })); blank.userData.isLabel = true; blank.userData.text = text; return blank; }
     ctx.font = font;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -94,6 +99,7 @@
     s.scale.set(w * sc, h * sc, 1);
     s.renderOrder = 20;
     s.userData.isLabel = true;
+    s.userData.text = text;
     return s;
   }
 
@@ -492,9 +498,11 @@
       this.bars = [];
       const n = clamp(Math.round(p.n || 7), 3, 10);
       const geoMode = p.mode === 'geo';
+      const num = (v, d) => (typeof v === 'number' && isFinite(v) ? v : d);   // 0 is a real value
+      const a = num(p.a, 1), d = num(p.d, 1), q = num(p.q, 2);
       const values = [];
       for (let i = 0; i < n; i++) {
-        values.push(geoMode ? (p.a || 1) * Math.pow(p.q || 2, i) : (p.a || 1) + i * (p.d || 1));
+        values.push(geoMode ? a * Math.pow(q, i) : a + i * d);
       }
       const maxAbs = Math.max(1, ...values.map((v) => Math.abs(v)));
       const scale = 3.5 / maxAbs;
@@ -513,8 +521,8 @@
         );
         // RTL reading order: the first term sits on the right
         const x = ((n - 1) / 2 - i) * spacing;
-        bar.position.set(x, h / 2, 0);
-        bar.scale.y = Math.max(0.04, Math.abs(h));
+        bar.position.set(x, h === 0 ? 0.03 : h / 2, 0);
+        bar.scale.y = Math.max(0.06, Math.abs(h));
         if (h < 0) bar.position.y = h / 2;
         this.group.add(bar);
         const cap = new THREE.Mesh(
@@ -525,9 +533,9 @@
         this.group.add(cap);
         tops.push(new THREE.Vector3(x, h, 0));
         this.bars.push({ bar, value: v, x, y: h });
-        // value label for every term (always above the bar top so it never sinks under the grid)
+        // value label for every term, right at the end of its bar (above for +, below for −)
         const vl = makeLabel(`${fmt(v)}`, '#cfe3d8', { fontSize: 30, scale: 0.0052, bg: 'rgba(8,15,12,.72)' });
-        vl.position.set(x, Math.max(0, h) + (h >= 0 ? 0.42 : 0.42), 0);
+        vl.position.set(x, h >= 0 ? h + 0.42 : h - 0.42, 0);
         this.group.add(vl);
       });
 
@@ -544,14 +552,21 @@
       const last = this.bars[this.bars.length - 1];
       if (first) {
         const l = makeLabel(`a₁ = ${fmt(first.value)}`, '#f3f0e4', { fontSize: 36, scale: 0.006, bg: 'rgba(8,15,12,.78)' });
-        l.position.set(first.x, Math.max(0, first.y) + 1.05, 0);
+        l.position.set(first.x, first.y >= 0 ? first.y + 1.05 : first.y - 1.05, 0);
         this.group.add(l);
       }
       if (last && last !== first) {
         const l = makeLabel(`aₙ = ${fmt(last.value)}`, '#f2e85c', { fontSize: 36, scale: 0.006, bg: 'rgba(8,15,12,.78)' });
-        l.position.set(last.x, Math.max(0, last.y) + 1.05, 0);
+        l.position.set(last.x, last.y >= 0 ? last.y + 1.05 : last.y - 1.05, 0);
         this.group.add(l);
       }
+    }
+
+    // a parameter change must be visible at once, even if the animation loop is throttled
+    drawNow() {
+      try {
+        if (this.renderer && this.scene && this.camera) this.renderer.render(this.scene, this.camera);
+      } catch (e) { /* the loop will catch up */ }
     }
 
     update(dt, t) {
