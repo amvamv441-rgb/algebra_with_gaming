@@ -685,7 +685,7 @@
   // The header always states which build the browser is really running: if the chip shows an
   // older tag than the deployed one, the page (or a proxy) is serving a stale copy.
   function stampBuild() {
-    const BUILD = '2026-11-24d';
+    const BUILD = '2026-11-24e';
     const chip = document.getElementById('buildChip');
     if (chip) chip.textContent = `build ${BUILD}`;
     return BUILD;
@@ -925,7 +925,7 @@
         <circle cx="${sx(1).toFixed(1)}" cy="${AY.toFixed(1)}" r="5.5" fill="#f2e85c"/>
         <circle cx="${sx(3).toFixed(1)}" cy="${AY.toFixed(1)}" r="5.5" fill="#f2e85c"/>
 
-        <text x="${sx(4.62).toFixed(1)}" y="${(sy(4.35)).toFixed(1)}" class="af-lab muted" text-anchor="end">y = f(x)</text>
+        <text x="${sx(4.7).toFixed(1)}" y="${(sy(3.55)).toFixed(1)}" class="af-lab muted" text-anchor="end">y = f(x)</text>
         <text x="${sx(2).toFixed(1)}" y="${(sy(1) - 16).toFixed(1)}" class="af-lab teal" text-anchor="middle">قرینه بالا می‌آید ← |f(x)|</text>
         <text x="${sx(2).toFixed(1)}" y="${(sy(-1) + 24).toFixed(1)}" class="af-lab muted" text-anchor="middle">بخش زیر محور (خط‌چین)</text>
         <text x="${sx(1).toFixed(1)}" y="${(AY + 20).toFixed(1)}" class="af-lab gold" text-anchor="middle">۱</text>
@@ -1862,7 +1862,7 @@
 
           <div class="modal-section">
             <h3>${Icons.book} درباره</h3>
-            <p class="muted" style="font-size:.76rem;line-height:2">حسابان ۱ — آزمایشگاه فصل اول، نسخه ۱۴۰۴ (build 2026-11-24d). محتوا بر اساس سرفصل رسمی فصل اول حسابان (۱) پایه یازدهم ریاضی و فیزیک تهیه شده است. همه داده‌ها روی دستگاه خودت ذخیره می‌شود.</p>
+            <p class="muted" style="font-size:.76rem;line-height:2">حسابان ۱ — آزمایشگاه فصل اول، نسخه ۱۴۰۴ (build 2026-11-24e). محتوا بر اساس سرفصل رسمی فصل اول حسابان (۱) پایه یازدهم ریاضی و فیزیک تهیه شده است. همه داده‌ها روی دستگاه خودت ذخیره می‌شود.</p>
           </div>
         </div>
         <div class="modal-foot"><button type="button" class="btn btn-primary" data-close>بستن</button></div>
