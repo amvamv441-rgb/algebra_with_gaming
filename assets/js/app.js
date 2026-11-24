@@ -529,14 +529,31 @@
     if (kind === 'parabola' || kind === 'absolute') {
       const a = typeof p.a === 'number' ? p.a : 1, b = typeof p.b === 'number' ? p.b : 0, c = typeof p.c === 'number' ? p.c : 0;
       const f = (x) => a * x * x + b * x + c;
-      const x0 = -6, x1 = 6, { X, Y } = axis(x0, x1, -6, 8);
       const sgn = (v) => (v >= 0 ? '+' : '−') + Math.abs(v);
-      return `<svg viewBox="0 0 ${W} ${H}" class="lab2d-svg" role="img" aria-label="نمودار سهمی">
+      // in the |f| lab the "fold" slider must do something here too: the negative part swings up
+      const fold = kind === 'absolute' ? Math.max(0, Math.min(1, typeof p.fold === 'number' ? p.fold : 0)) : 0;
+      // fit the window to the curve, so a parabola is never drawn far outside the chart
+      const vert = -b / (2 * a);
+      const vy = isFinite(vert) ? f(vert) : c;
+      const xr = Math.max(3, Math.min(9, Math.sqrt(Math.max(0, Math.abs(vy - c) / Math.abs(a) || 3)) + 2.6));
+      const x0 = -xr, x1 = xr;
+      const marks = [0, c, vy, f(-xr), f(xr), f(x0), f(x1)].filter((v) => isFinite(v));
+      const lo = Math.min(...marks), hi = Math.max(...marks);
+      const pad = Math.max(1, (hi - lo) * 0.25);
+      const { X, Y } = axis(x0, x1, lo - pad, hi + pad);
+      const th = fold * Math.PI;
+      const shown = (x) => { const y = f(x); return kind === 'absolute' && y < 0 ? y * Math.cos(th) : y; };
+      const ghost = kind === 'absolute' && fold > 0
+        ? `<path d="${curve(f, x0, x1, 90, X, Y)}" fill="none" stroke="var(--muted)" stroke-width="2" stroke-dasharray="5 5" opacity=".5"/>`
+        : '';
+      return `<svg viewBox="0 0 ${W} ${H}" class="lab2d-svg" role="img" aria-label="نمودار تابع">
         <line x1="20" y1="${Y(0).toFixed(1)}" x2="${W - 16}" y2="${Y(0).toFixed(1)}" stroke="var(--line-strong)" stroke-width="1.4"/>
         <line x1="${X(0).toFixed(1)}" y1="16" x2="${X(0).toFixed(1)}" y2="${H - 16}" stroke="var(--line-strong)" stroke-width="1.4"/>
-        <path d="${curve(f, x0, x1, 90, X, Y)}" fill="none" stroke="#7fe7c4" stroke-width="3" stroke-linecap="round"/>
-        <circle cx="${X(-b / (2 * a)).toFixed(1)}" cy="${Y(f(-b / (2 * a))).toFixed(1)}" r="4.5" fill="#f2e85c"/>
-        <text x="${W - 24}" y="32" class="lab2d-lab" text-anchor="end">f(x) = ${fmtVal(a)}x² ${sgn(b)}x ${sgn(c)}</text>
+        ${ghost}
+        <path d="${curve(shown, x0, x1, 90, X, Y)}" fill="none" stroke="#7fe7c4" stroke-width="3" stroke-linecap="round"/>
+        <circle cx="${X(vert).toFixed(1)}" cy="${Y(shown(vert)).toFixed(1)}" r="4.5" fill="#f2e85c"/>
+        <text x="${W - 24}" y="30" class="lab2d-lab" text-anchor="end">f(x) = ${fmtVal(a)}x² ${sgn(b)}x ${sgn(c)}</text>
+        ${kind === 'absolute' ? `<text x="${W - 24}" y="48" class="lab2d-lab gold" text-anchor="end">تا شدن: ${fmtVal(Math.round(fold * 100))}٪</text>` : ''}
       </svg>`;
     }
     if (kind === 'geometry') {
@@ -668,7 +685,7 @@
   // The header always states which build the browser is really running: if the chip shows an
   // older tag than the deployed one, the page (or a proxy) is serving a stale copy.
   function stampBuild() {
-    const BUILD = '2026-11-24b';
+    const BUILD = '2026-11-24d';
     const chip = document.getElementById('buildChip');
     if (chip) chip.textContent = `build ${BUILD}`;
     return BUILD;
@@ -704,35 +721,48 @@
   }
 
   function discriminantVisual() {
-    // Exact parabolas in a 160×112 box. Screen y grows downward.
-    const sample = (fn, x0, x1, n) => {
-      const pts = [];
-      for (let i = 0; i <= n; i++) { const x = x0 + (x1 - x0) * i / n; pts.push([x, fn(x)]); }
-      return pts;
-    };
-    const path = (pts) => 'M' + pts.map(([x, y]) => `${x.toFixed(1)} ${y.toFixed(1)}`).join(' L');
+    // Three downward parabolas y = −A(x−h)² + v measured from the x axis (screen y grows down).
+    //   Δ > 0 → the peak rises above the axis and the arms cross it at the two roots
+    //   Δ = 0 → the vertex touches the axis at one point (double root), the rest stays below it
+    //   Δ < 0 → the whole curve hangs below the axis, with a visible gap (no intersection at all)
+    const AXIS = 78, BOX_TOP = 6, BOX_BOTTOM = 108, H = 80;
     const cases = [
-      { t: 'Δ > 0', s: 'دو ریشه‌ی متمایز', c: '#7fe7c4', AX: 74, A: 0.020, h: 80, r: 28, gap: 0, roots: [52, 108] },
-      { t: 'Δ = 0', s: 'ریشه‌ی تکراری', c: '#f2e85c', AX: 74, A: 0.013, h: 80, r: 0, gap: 0, roots: [80] },
-      { t: 'Δ < 0', s: 'بدون ریشه‌ی حقیقی', c: '#ff8a70', AX: 100, A: 0.014, h: 80, r: 0, gap: 40, roots: [] }
+      { t: 'Δ > 0', s: 'دو ریشه‌ی متمایز', c: '#7fe7c4', v: 30, A: 0.0383, roots: [52, 108] },
+      { t: 'Δ = 0', s: 'ریشه‌ی تکراری', c: '#f2e85c', v: 0, A: 0.0200, roots: [80] },
+      { t: 'Δ < 0', s: 'بدون ریشه‌ی حقیقی', c: '#ff8a70', v: -12, A: 0.0130, roots: [] }
     ];
+    const yOf = (k, x) => AXIS - k.v + k.A * (x - H) * (x - H);
     return `<div class="disc-grid">
       ${cases.map((k, ci) => {
-        const fn = (x) => k.AX + k.A * ((x - k.h) * (x - k.h) - k.r * k.r) - k.gap;
-        const pts = sample(fn, 36, 124, 72).filter(([, y]) => y <= 106);
-        const roots = k.roots.map((x) => `<circle cx="${x}" cy="${k.AX}" r="4.5" fill="${k.c}" stroke="var(--surface)" stroke-width="1.5"/>`).join('');
-        const drop = k.gap ? `<line x1="${k.h}" y1="${(k.AX - k.gap - k.A * k.r * k.r).toFixed(1)}" x2="${k.h}" y2="${k.AX - 4}" stroke="${k.c}" stroke-width="1.2" stroke-dasharray="3 3" opacity=".7"/>` : '';
-        const rootLabels = k.roots.length === 2
-          ? `<text x="52" y="${k.AX - 12}" text-anchor="middle" class="d-lab">x<tspan class="sub">1</tspan></text><text x="108" y="${k.AX - 12}" text-anchor="middle" class="d-lab">x<tspan class="sub">2</tspan></text>`
-          : k.roots.length === 1 ? `<text x="${k.h + 12}" y="${k.AX - 7}" class="d-lab">x</text>` : '';
+        // only sample where the curve is inside the card, so it is never cut in the middle
+        const lim = (k.v + (BOX_BOTTOM - AXIS)) / k.A;         // (x−h)² max
+        const dx = Math.sqrt(Math.max(36, lim));
+        const pts = [];
+        for (let i = 0; i <= 80; i++) {
+          const x = H - dx + (2 * dx) * i / 80;
+          const y = yOf(k, x);
+          if (y >= BOX_TOP && y <= BOX_BOTTOM) pts.push([x, y]);
+        }
+        const d = 'M' + pts.map(([x, y]) => `${x.toFixed(1)} ${y.toFixed(1)}`).join(' L');
+        const dot = (cx, cy, r) => `<circle cx="${cx}" cy="${cy}" r="${r || 4.6}" fill="${k.c}" stroke="var(--surface)" stroke-width="1.5"/>`;
+        const roots = k.roots.map((x) => dot(x, AXIS)).join('');
+        const guide = k.roots.length === 1
+          ? `<line x1="${H}" y1="${AXIS - 22}" x2="${H}" y2="${AXIS - 4}" stroke="${k.c}" stroke-width="1.1" stroke-dasharray="3 3" opacity=".5"/>`
+          : k.roots.length === 0
+            ? `<line x1="${H}" y1="${(yOf(k, H) - 3).toFixed(1)}" x2="${H}" y2="${AXIS - 5}" stroke="${k.c}" stroke-width="1.1" stroke-dasharray="3 3" opacity=".55"/>
+               <path d="M${H - 4} ${AXIS - 9} l8 8 M${H + 4} ${AXIS - 9} l-8 8" stroke="${k.c}" stroke-width="1.4" opacity=".7"/>`
+            : '';
+        const labels = k.roots.length === 2
+          ? `<text x="52" y="${AXIS - 11}" text-anchor="middle" class="d-lab">x<tspan class="sub">1</tspan></text><text x="108" y="${AXIS - 11}" text-anchor="middle" class="d-lab">x<tspan class="sub">2</tspan></text>`
+          : k.roots.length === 1 ? `<text x="${H + 15}" y="${AXIS - 12}" class="d-lab">x</text>` : '';
         return `<div class="disc-item">
           <svg viewBox="0 0 160 112" aria-hidden="true">
-            <line x1="14" y1="${k.AX}" x2="146" y2="${k.AX}" stroke="var(--line-strong)" stroke-width="1.5"/>
-            <path d="M146 ${k.AX} l-6 -3.5 v7 z" fill="var(--line-strong)"/>
-            <text x="147" y="${k.AX - 5}" class="d-lab">x</text>
-            ${drop}
-            <path d="${path(pts)}" fill="none" stroke="${k.c}" stroke-width="3" stroke-linecap="round" style="animation-delay:${ci * 0.15}s"/>
-            ${roots}${rootLabels}
+            <line x1="12" y1="${AXIS}" x2="146" y2="${AXIS}" stroke="var(--line-strong)" stroke-width="1.5"/>
+            <path d="M146 ${AXIS} l-6 -3.5 v7 z" fill="var(--line-strong)"/>
+            <text x="148" y="${AXIS - 5}" class="d-lab">x</text>
+            ${guide}
+            <path d="${d}" fill="none" stroke="${k.c}" stroke-width="3" stroke-linecap="round" style="animation-delay:${ci * 0.15}s"/>
+            ${roots}${labels}
           </svg>
           <strong>${k.t}</strong><span>${k.s}</span>
         </div>`;
@@ -1832,7 +1862,7 @@
 
           <div class="modal-section">
             <h3>${Icons.book} درباره</h3>
-            <p class="muted" style="font-size:.76rem;line-height:2">حسابان ۱ — آزمایشگاه فصل اول، نسخه ۱۴۰۴ (build 2026-11-24b). محتوا بر اساس سرفصل رسمی فصل اول حسابان (۱) پایه یازدهم ریاضی و فیزیک تهیه شده است. همه داده‌ها روی دستگاه خودت ذخیره می‌شود.</p>
+            <p class="muted" style="font-size:.76rem;line-height:2">حسابان ۱ — آزمایشگاه فصل اول، نسخه ۱۴۰۴ (build 2026-11-24d). محتوا بر اساس سرفصل رسمی فصل اول حسابان (۱) پایه یازدهم ریاضی و فیزیک تهیه شده است. همه داده‌ها روی دستگاه خودت ذخیره می‌شود.</p>
           </div>
         </div>
         <div class="modal-foot"><button type="button" class="btn btn-primary" data-close>بستن</button></div>
